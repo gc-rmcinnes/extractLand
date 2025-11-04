@@ -25,7 +25,7 @@ defineModule(sim, list(
                     "This describes the simulation time interval between save events."),
     defineParameter(".studyAreaName", "character", NA, NA, NA,
                     "Human-readable name for the study area used - e.g., a hash of the study",
-                          "area obtained using `reproducible::studyAreaName()`"),
+                    "area obtained using `reproducible::studyAreaName()`"),
     ## .seed is optional: `list('init' = 123)` will `set.seed(123)` for the `init` event only.
     defineParameter(".seed", "list", list(), NA, NA,
                     "Named list of seeds to use for each event (names)."),
@@ -43,25 +43,20 @@ defineModule(sim, list(
 ))
 
 
-doEvent.extractLand.extractLand <- function(sim, eventTime, eventType, priority) {
-
-  return(sim)
-}
-
-Init <- function(sim) {
-  
-}
-### template for save events
-Save <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # do stuff for this event
-  sim <- saveFiles(sim)
-
-  # ! ----- STOP EDITING ----- ! #
+doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
+  switch(
+    eventType,
+    init = {
+      # run data harmonization
+      sim <- Init(sim)
+      
+    },
+    warning(noEventWarning(sim))
+  )
   return(invisible(sim))
 }
 
-extractLand <- function(sim) {
+Init <- function(sim) {
   #message("Starting extraction...")
   
   tracks <- sim$caribouLoc
@@ -100,17 +95,22 @@ extractLand <- function(sim) {
   sim <- scheduleEvent(sim, time(sim), "myModuleName", "save")
   
   return(invisible(sim))
+  
+}
+### template for save events
+Save <- function(sim) {
+  # ! ----- EDIT BELOW ----- ! #
+  # do stuff for this event
+  sim <- saveFiles(sim)
+  
+  # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
 }
-
-
 
 .inputObjects <- function(sim) {
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-
+  
   
   return(invisible(sim))
 }
-
-
