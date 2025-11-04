@@ -91,9 +91,6 @@ Init <- function(sim) {
   sim$extractLand <- rbindlist(extracted_list, fill = TRUE)
   #message("Extraction complete: ", nrow(sim$extractedPoints), " records.")
   
-  # Schedule save event
-  sim <- scheduleEvent(sim, time(sim), "myModuleName", "save")
-  
   return(invisible(sim))
   
 }
