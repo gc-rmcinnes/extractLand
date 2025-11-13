@@ -90,14 +90,14 @@ Init <- function(sim) {
     # 5 Year data
     fiveYear <- paste0("intYear", yr)
     if (!is.null(sim$landscape5Yearly[[fiveYear]])) {
-      land5Obj <- sim$landscape5Yearly[[fiveYear]]
+      fiveYear_rasts <- sim$landscape5Yearly[[fiveYear]]
     } else {
       message("No 5-year data found for ", fiveYear)
       land5Obj <- NULL
     }
 
     # combine all the rasters
-    landscapeYr <- c(annual_rasts, fiveYear) #might be an issue
+    landscapeYr <- c(annual_rasts, fiveYear_rasts) #might be an issue
 
     # extract the values
     coords <- pts_yr[, .(x1_, y1_)]
