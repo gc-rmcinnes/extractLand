@@ -10,7 +10,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("NEWS.md", "README.md", "extractLand.Rmd"),
-  reqdPkgs = list("SpaDES.core (>= 2.1.8.9001)", "ggplot2", "terra", "data.table"),
+  reqdPkgs = list("SpaDES.core (>= 2.1.8.9001)", "ggplot2", "terra", "data.table", "distanceto"),
   parameters = bindrows(
     #defineParameter("paramName", "paramClass", value, min, max, "parameter description"),
     defineParameter("caribouYears", "integer", NULL, NA, NA,
@@ -38,16 +38,17 @@ defineModule(sim, list(
   ),
   inputObjects = bindrows(
     #expectsInput("objectName", "objectClass", "input object description", sourceURL, ...),
-    expectsInput(objectName = "landscapeYearly", objectClass = 'list',
+    expectsInput(objectName = "landscapeYearly", objectClass = 'spatRaster',
                  desc = 'list of spatRaster stacks of the yearly landscape layers'),
-    expectsInput(objectName = "landscape5Yearly", objectClass = 'list',
+    expectsInput(objectName = "landscape5Yearly", objectClass = 'spatRaster',
                  desc = 'list of spatRaster stacks of the 5 yearly landscape layers'),
     expectsInput(objectName = "tracks", objectClass = 'data.table',
                  desc = 'tracks of used and random steps to extract environmental covariates for')
   ),
   outputObjects = bindrows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
-    createsOutput(objectName = 'extractLand', objectClass = "data.table", desc = "Landscape values matched by year to points")
+    createsOutput(objectName = 'extractLand', objectClass = "data.table",
+                  desc = "Landscape values and distance calculations matched by year to points")
   )
 ))
 
@@ -68,52 +69,116 @@ doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
 Init <- function(sim) {
   message("Starting extraction...")
 
-  if(!is.null(Par$caribouYears)){
-    tracks <- sim$tracks[year >= min(Par$caribouYears) & year <= max(Par$caribouYears)]
-  }
+  # valid years only
   tracks <- sim$tracks
-  years <- sort(unique(sim$tracks$year))
-  landYears <- c("2019","2020","2021") #update this to a param (histLandYears)
+  years <- sort(unique(tracks$year))
+  validYears <- intersect(as.character(years), Par$histLandYears)
 
-  # Get available years from all dynamic layers
-  validYears <- intersect(as.character(years), landYears)
-
-  # Main extraction
-  extracted_list <- lapply(validYears, function(yr){
+  extracted_list <- lapply(sort(intersect(as.character(years), validYears)), function(yr){
+    browser()
     message("Extracting for year ", yr)
 
-    pts_yr <- tracks[tracks$year == as.integer(yr), ]
+    pts_yr <- tracks[year == as.integer(yr), ]
 
-    # Annual data
+    # Annual raster layers
     annual_rasts <- sim$landscapeYearly[[paste0("year", yr)]]
 
-    # 5 Year data
-    fiveYear <- paste0("intYear", yr)
-    if (!is.null(sim$landscape5Yearly[[fiveYear]])) {
-      fiveYear_rasts <- sim$landscape5Yearly[[fiveYear]]
+    # 5-Year vector layers
+    fiveYearInt <- paste0("intYear", pts_yr$int.year[1])
+    fiveYearObj <- sim$landscape5Yearly[[fiveYearInt]]
+
+    crs_year <- terra::crs(annual_rasts[[1]])
+
+    # Annual raster value extraction
+    pts_vect <- terra::vect(pts_yr[, .(x1_, y1_)],
+                            geom = c("x1_", "y1_"),
+                            crs = crs_year)
+
+    vals <- terra::extract(annual_rasts, pts_vect)
+    vals <- vals[, -1, drop = FALSE]  # drop cell ID
+
+
+    # Convert 5-year SpatVectors to sf
+
+    # PAVED (SpatVectorCollection)
+    # May need to add a second paved conversion for the other layer
+    paved_sf <- if (!is.null(fiveYearObj$paved))
+      st_as_sf(fiveYearObj$paved[[2]])
+    else NULL
+    paved_sf <- st_cast(paved_sf, "MULTILINESTRING")
+
+    # UNPAVED (SpatVector)
+    unpaved_sf <- if (!is.null(fiveYearObj$unpaved))
+      st_as_sf(fiveYearObj$unpaved)
+    else NULL
+    unpaved_sf <- st_cast(unpaved_sf, "MULTILINESTRING")
+
+    # POLYS (SpatVector)
+    polys_sf <- if (!is.null(fiveYearObj$polys))
+      st_as_sf(fiveYearObj$polys)
+    else NULL
+    polys_sf <- st_cast(polys_sf, "MULTIPOLYGON")
+
+
+    # Calculate the distance to the vector layers
+
+    # Unpaved distance calculation
+    if (!is.null(unpaved_sf)) {
+      pts_yr <- extract_distto(
+        DT = pts_yr,
+        feature = unpaved_sf,
+        name = "unpaved",
+        where = "end",
+        crs = crs_year,
+        int.yr = pts_yr$int.year[1]
+      )
     } else {
-      message("No 5-year data found for ", fiveYear)
-      land5Obj <- NULL
+      pts_yr[, dist_unpaved_end := NA_real_]
     }
 
-    # combine all the rasters
-    landscapeYr <- c(annual_rasts, fiveYear_rasts) #might be an issue
+    # Paved distance calculation
+    if (!is.null(paved_sf)) {
+      pts_yr <- extract_distto(
+        DT = pts_yr,
+        feature = paved_sf,
+        name = "paved",
+        where = "end",
+        crs = crs_year,
+        int.yr = pts_yr$int.year[1]
+      )
+    } else {
+      pts_yr[, dist_paved_end := NA_real_]
+    }
 
-    # extract the values
-    coords <- pts_yr[, .(x1_, y1_)]
-    vals <- terra::extract(landscapeYr, coords)
-    vals <- vals[, -1, drop = FALSE]  # drop cell ID column
+    # Polygon distance calculation
+    if (!is.null(polys_sf)) {
+      pts_yr <- extract_distto(
+        DT = pts_yr,
+        feature = polys_sf,
+        name = "polys",
+        where = "end",
+        crs = crs_year,
+        int.yr = pts_yr$int.year[1]
+      )
+    } else {
+      pts_yr[, dist_polys_end := NA_real_]
+    }
 
-    # merge
-    dt <- data.table(cbind(as.data.frame(pts_yr), vals))
+    # Combine the annual extractions and 5 year distance calculations
+
+    dt <- data.table(cbind(
+      vals,
+      as.data.frame(pts_yr)
+    ))
+
     dt$year <- as.integer(yr)
 
     return(dt)
   })
 
-  # Combine and store
+  # Combine all years
   sim$extractLand <- rbindlist(extracted_list, fill = TRUE)
-  #message("Extraction complete: ", nrow(sim$extractedPoints), " records.")
+  message("Extraction complete: ", nrow(sim$extractLand), " records.")
 
   return(invisible(sim))
 
@@ -121,7 +186,6 @@ Init <- function(sim) {
 ### template for save events
 Save <- function(sim) {
   # ! ----- EDIT BELOW ----- ! #
-  # do stuff for this event
 
   # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
