@@ -128,7 +128,7 @@ Init <- function(sim) {
         DT = pts_yr,
         feature = unpaved_sf,
         name = "unpaved",
-        where = "end",
+        where = "both",
         crs = crs_year,
         int.yr = pts_yr$int.year[1]
       )
@@ -142,7 +142,7 @@ Init <- function(sim) {
         DT = pts_yr,
         feature = paved_sf,
         name = "paved",
-        where = "end",
+        where = "both",
         crs = crs_year,
         int.yr = pts_yr$int.year[1]
       )
@@ -156,7 +156,7 @@ Init <- function(sim) {
         DT = pts_yr,
         feature = polys_sf,
         name = "polys",
-        where = "end",
+        where = "both",
         crs = crs_year,
         int.yr = pts_yr$int.year[1]
       )
