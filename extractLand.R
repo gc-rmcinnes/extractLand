@@ -75,7 +75,6 @@ Init <- function(sim) {
   validYears <- intersect(as.character(years), Par$histLandYears)
 
   extracted_list <- lapply(sort(intersect(as.character(years), validYears)), function(yr){
-    browser()
     message("Extracting for year ", yr)
 
     pts_yr <- tracks[year == as.integer(yr), ]
