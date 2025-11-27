@@ -8,9 +8,8 @@ extractLandFeatures <- function(tracks, landscapeYearly, landscape5Yearly, histL
   
   extracted_list <- lapply(sort(intersect(as.character(years), validYears)), function(yr){
     message("Extracting for year ", yr)
-    print("landscapeYearly seems empty for the first year...? Check!")
+    print("Error in the year.... debug!")
     browser()
-    
     pts_yr <- tracks[year == as.integer(yr), ]
     
     # Annual raster layers
