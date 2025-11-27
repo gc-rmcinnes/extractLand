@@ -47,8 +47,8 @@ defineModule(sim, list(
   ),
   outputObjects = bindrows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
-    createsOutput(objectName = 'extractLand', objectClass = "data.table",
-                  desc = "Landscape values and distance calculations matched by year to points")
+    createsOutput(objectName = 'extractVar', objectClass = "data.table",
+                  desc = "variables of landscape values and distance calculations matched by year to points")
   )
 ))
 
@@ -187,7 +187,7 @@ Init <- function(sim) {
   })
 
   # Combine all years
-  sim$extractLand <- rbindlist(extracted_list, fill = TRUE)
+  sim$extractVar <- rbindlist(extracted_list, fill = TRUE)
   message("Extraction complete: ", nrow(sim$extractLand), " records.")
 
   return(invisible(sim))
