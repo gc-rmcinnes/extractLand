@@ -34,7 +34,26 @@ defineModule(sim, list(
     defineParameter(".seed", "list", list(), NA, NA,
                     "Named list of seeds to use for each event (names)."),
     defineParameter(".useCache", "logical", FALSE, NA, NA,
-                    "Should caching of events or module be used?")
+                    "Should caching of events or module be used?"),
+    defineParameter("checkExistingExtracted", "logical", FALSE, NA, NA,
+                    paste0("Should the module check if the final table already exists?",
+                           "This is a good alternative to save time afterwards for one run,",
+                           " but need to be turned FALSE for replicates. The table is saved on the ",
+                           "outputs folder (i.e., `getPaths()$outputPath`. ATTENTION: for the ",
+                           "table to be saved, .saveInitialTime MUST be different than NA, which",
+                           "is the default")),
+    defineParameter("hashExtracted", "character", paste0(sample(c(letters, LETTERS, 0:9), 10, 
+                                                                replace = TRUE), 
+                                                         collapse = ""), NA, NA,
+                    paste0("This is a hash for an existing table. If more tables should be ",
+                           "saved/loaded, it helps to have different hased names. Currently, ",
+                           "only one value is accepted per run.")),
+    defineParameter("saveYearlyExtracted", "logical", TRUE, NA, NA,
+                    paste0("Should each extracted table (i.e., yearly) be saved (i.e., written)?",
+                           "If TRUE, the function will check if the table exists and is the same ",
+                           "as previously ran. If so, it returns the saved tables.", 
+                           "Because extraction is a slow function generally, this can save ",
+                           "time in future re-runs with the same data.")) 
   ),
   inputObjects = bindrows(
     #expectsInput("objectName", "objectClass", "input object description", sourceURL, ...),
@@ -52,7 +71,6 @@ defineModule(sim, list(
   )
 ))
 
-
 doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
   switch(
     eventType,
@@ -61,11 +79,25 @@ doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
       sim <- scheduleEvent(sim, time(sim), "extractLand", "extractingLandscapeFeatures")
     },
     extractingLandscapeFeatures = {
-      # run data harmonization
-      sim <- extractLandFeatures(tracks = sim$tracks, 
+      existingTable <- file.path(file.path(getPaths()$outputPath, 
+                                           paste0(Par$hashExtracted, ".csv")))
+      if (all(Par$checkExistingExtracted,
+              file.exists(existingTable))){
+        sim$extractedLand <- data.table::fread(existingTable)
+      } else {
+              sim$extractedLand <- extractLandFeatures(tracks = sim$tracks, 
                                  landscapeYearly = sim$landscapeYearly, 
                                  landscape5Yearly = sim$landscape5Yearly,
-                                 histLandYears = P(sim)$histLandYears)
+                                 histLandYears = P(sim)$histLandYears,
+                                 saveYearlyExtracted = P(sim)$saveYearlyExtracted,
+                                 outputDir = outputPath(sim),
+                                 hashExtracted = P(sim)$hashExtracted)
+              # TODO We should highly likely save the table! This would shortcut
+              # us to have to run everything again. This is what goes into the 
+              # iSSA, so we can shortcut from here.
+              # if (!is.na(Par$.saveInitialTime)) write.csv(sim$extractedLand, 
+              #                                             file = existingTable)
+      }
     },
     warning(noEventWarning(sim))
   )
