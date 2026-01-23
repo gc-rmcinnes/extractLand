@@ -78,13 +78,6 @@ doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
       # run data harmonization
       sim <- scheduleEvent(sim, time(sim), "extractLand", "extractingLandscapeFeatures")
     },
-    extractingLandscapeFeatures = {
-      existingTable <- file.path(file.path(getPaths()$outputPath, 
-                                           paste0(Par$hashExtracted, ".csv")))
-      if (all(Par$checkExistingExtracted,
-              file.exists(existingTable))){
-        sim$extractedLand <- data.table::fread(existingTable)
-      } else {
               sim$extractedLand <- extractLandFeatures(tracks = sim$tracks, 
                                  landscapeYearly = sim$landscapeYearly, 
                                  landscape5Yearly = sim$landscape5Yearly,
@@ -92,12 +85,7 @@ doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
                                  saveYearlyExtracted = P(sim)$saveYearlyExtracted,
                                  outputDir = outputPath(sim),
                                  hashExtracted = P(sim)$hashExtracted)
-              # TODO We should highly likely save the table! This would shortcut
-              # us to have to run everything again. This is what goes into the 
-              # iSSA, so we can shortcut from here.
-              # if (!is.na(Par$.saveInitialTime)) write.csv(sim$extractedLand, 
-              #                                             file = existingTable)
-      }
+
     },
     warning(noEventWarning(sim))
   )

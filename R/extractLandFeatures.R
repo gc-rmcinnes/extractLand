@@ -11,8 +11,8 @@ extractLandFeatures <- function(tracks,
   # valid years only
   years <- sort(unique(tracks$year))
   validYears1 <- intersect(as.character(years), histLandYears)
-  landYears <- substr(x = names(landscapeYearly$landscapeYearly), 
-                      start = nchar(names(landscapeYearly$landscapeYearly)) - 3, 
+  landYears <- substr(x = names(landscapeYearly$landscapeYearly[[1]]), 
+                      start = nchar(names(landscapeYearly$landscapeYearly)) - 4, 
                       nchar(names(landscapeYearly$landscapeYearly)))
   validYears2 <- intersect(landYears, validYears1)
   
@@ -22,9 +22,9 @@ extractLandFeatures <- function(tracks,
     dig <- digest::digest(c(dig1, dig2, hashExtracted))
     generalNaming <- paste0("extractedFeatures_",dig)
     yearsNaming <- paste0(validYears2[1], "_", validYears2[length(validYears2)])
-    extractedLandName <- paste0(generalNaming, "_", yearsNaming, ".csv")
+    extractedLandName <- file.path(outputDir, paste0(generalNaming, "_", yearsNaming, ".csv"))
   }
-  
+
   if (all(saveYearlyExtracted,
           file.exists(extractedLandName))){
     
@@ -50,10 +50,11 @@ extractLandFeatures <- function(tracks,
       pts_yr <- tracks[year == as.integer(yr), ]
       
       # Annual raster layers
-      annual_rasts <- landscapeYearly$landscapeYearly[[paste0("year", yr)]]
-      
+      annual_rasts <- landscapeYearly$landscapeYearly[[1]][[paste0("year", yr)]] #TODO: This needs to go into a lapply. I messed it up when trying to fix the code...
+
       # 5-Year vector layers
       fiveYearInt <- paste0("intYear", unique(pts_yr$int.year))
+
       fiveYearObj <- landscape5Yearly[[fiveYearInt]]
       
       # TODO If fiveYearObj is NULL (i.e., a needed 2005)
@@ -68,7 +69,10 @@ extractLandFeatures <- function(tracks,
       # Extract Start raster values
       pts_yr_start <- terra::vect(pts_yr[, .(x1_, y1_)], geom = c("x1_", "y1_"),
                                   crs = terra::crs(annual_rasts[[1]]))
-      vals_start <- terra::extract(do.call(what = c, annual_rasts), pts_yr_start)#[, -1, drop = FALSE]
+      if (is(annual_rasts, "list")){
+        stop("annual_rasts is a list. This shouldn't happen. Please debug.")
+      }
+      vals_start <- terra::extract(annual_rasts, pts_yr_start)#[, -1, drop = FALSE]
       
       setnames(vals_start, paste0(names(vals_start), "_start"))
       
@@ -76,7 +80,7 @@ extractLandFeatures <- function(tracks,
       pts_yr_end <- terra::vect(pts_yr[, .(x2_, y2_)], geom = c("x2_", "y2_"),
                                 crs = terra::crs(annual_rasts[[1]]))
       
-      vals_end <- terra::extract(do.call(c, annual_rasts), pts_yr_end)#[, -1, drop = FALSE]
+      vals_end <- terra::extract(annual_rasts, pts_yr_end)#[, -1, drop = FALSE]
       
       setnames(vals_end, paste0(names(vals_end), "_end"))
       
@@ -156,7 +160,7 @@ extractLandFeatures <- function(tracks,
       dt$year <- as.integer(yr)
       
       if (saveYearlyExtracted){
-        write.csv(x = dt, file = tableName)
+        fwrite(x = dt, file = tableName)
         message(paste0("Saving the table for year ", yr, ": ", tableName))
       }
     }
@@ -170,7 +174,7 @@ extractLandFeatures <- function(tracks,
   
   if (saveYearlyExtracted){
     message(paste0("Saving final table: ", extractedLandName))
-    write.csv(x = extractedLand, file = extractedLandName)
+    fwrite(x = extractedLand, file = extractedLandName)
   }
   }
     return(extractedLand)
