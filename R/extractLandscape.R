@@ -3,7 +3,7 @@ extractLandscape <- function(sim){
   # valid years only
   tracks <- sim$tracks
   years <- sort(unique(tracks$year))
-  #need to add a stop if theres no valid years
+  # need to add a stop if theres no valid years
   validYears <- intersect(as.character(years), Par$histLandYears)
 
   extracted_list <- lapply(sort(intersect(as.character(years), validYears)), function(yr){

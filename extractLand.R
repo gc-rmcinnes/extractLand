@@ -14,9 +14,9 @@ defineModule(sim, list(
   parameters = bindrows(
     #defineParameter("paramName", "paramClass", value, min, max, "parameter description"),
     defineParameter("caribouYears", "integer", NULL, NA, NA,
-                    paste0("This is the year range of data we want to run models for.")),
+                    paste0("This is the year range of data to run iSSA models on")),
     defineParameter("histLandYears", "integer", 2010:2023, NA, NA,
-                    paste0("This is the year range we use past (not simulated) landscape layers.")),
+                    paste0("This is the year range used to compile past (not simulated) landscape layers.")),
     defineParameter(".plots", "character", "screen", NA, NA,
                     "Used by Plots function, which can be optionally used here"),
     defineParameter(".plotInitialTime", "numeric", start(sim), NA, NA,
@@ -37,16 +37,14 @@ defineModule(sim, list(
                     "Should caching of events or module be used?")
   ),
   inputObjects = bindrows(
-    #expectsInput("objectName", "objectClass", "input object description", sourceURL, ...),
     expectsInput(objectName = "landscapeYearly", objectClass = 'spatRaster',
-                 desc = 'list of spatRaster stacks of the yearly landscape layers'),
+                 desc = 'SpatRaster stacks of the yearly landscape layers'),
     expectsInput(objectName = "landscape5Yearly", objectClass = 'spatRaster',
-                 desc = 'list of spatRaster stacks of the 5 yearly landscape layers'),
+                 desc = 'SpatRaster stacks of the 5 year interval anthropogenic landscape layers'),
     expectsInput(objectName = "tracks", objectClass = 'data.table',
                  desc = 'tracks of used and random steps to extract environmental covariates for')
   ),
   outputObjects = bindrows(
-    #createsOutput("objectName", "objectClass", "output object description", ...),
     createsOutput(objectName = 'extractedVariables', objectClass = "data.table",
                   desc = "variables of landscape values at the animal locations and distance calculations matched by year to the animal locations")
   )
@@ -65,148 +63,11 @@ doEvent.extractLand <- function(sim, eventTime, eventType, priority) {
       if (is.null(sim$tracks)){
         stop("The object tracks is NULL. Please debug.")
       }
+      # run the landscape extraction process
       sim$extractedVariables <- extractLandscape(sim)
     },
     warning(noEventWarning(sim))
   )
-  return(invisible(sim))
-}
-
-# Init <- function(sim) {
-#   browser()
-#   message("Starting extraction...")
-#   # valid years only
-#   tracks <- sim$tracks
-#   years <- sort(unique(tracks$year))
-#   #need to add a stop if theres no valid years
-#   validYears <- intersect(as.character(years), Par$histLandYears)
-#
-#   extracted_list <- lapply(sort(intersect(as.character(years), validYears)), function(yr){
-#     message("Extracting for year ", yr)
-#     browser()
-#     pts_yr <- tracks[year == as.integer(yr), ]
-#
-#     # Annual raster layers
-#     annual_rasts <- sim$landscapeYearly[[paste0("year", yr)]]
-#     # if (inherits(annual_rasts, "list")) {
-#     #   annual_rasts <- rast(annual_rasts)
-#     # }
-#
-#     # 5-Year vector layers
-#     fiveYearInt <- paste0("intYear", pts_yr$int.year[1])
-#     fiveYearObj <- sim$landscape5Yearly[[fiveYearInt]]
-#
-#     crs_year <- terra::crs(annual_rasts[[1]])
-#
-#     # Annual raster value extraction
-#     # Extract Start raster values
-#     vals_start <- terra::extract(
-#       annual_rasts,
-#       terra::vect(pts_yr[, .(x1_, y1_)], geom = c("x1_", "y1_"),
-#                   crs = terra::crs(annual_rasts[[1]]))
-#     )[, -1, drop = FALSE]
-#
-#     setnames(vals_start, paste0(names(vals_start), "_start"))
-#
-#     # Extract End raster values
-#     vals_end <- terra::extract(
-#       annual_rasts,
-#       terra::vect(pts_yr[, .(x2_, y2_)], geom = c("x2_", "y2_"),
-#                   crs = terra::crs(annual_rasts[[1]]))
-#     )[, -1, drop = FALSE]
-#
-#     setnames(vals_end, paste0(names(vals_end), "_end"))
-#
-#     # Convert 5-year SpatVectors to sf
-#
-#     # PAVED (SpatVectorCollection)
-#     # May need to add a second paved conversion for the other layer
-#     paved_sf <- if (!is.null(fiveYearObj$paved))
-#       st_as_sf(fiveYearObj$paved[[2]])
-#     else NULL
-#     paved_sf <- st_cast(paved_sf, "MULTILINESTRING")
-#
-#     # UNPAVED (SpatVector)
-#     unpaved_sf <- if (!is.null(fiveYearObj$unpaved))
-#       st_as_sf(fiveYearObj$unpaved)
-#     else NULL
-#     unpaved_sf <- st_cast(unpaved_sf, "MULTILINESTRING")
-#
-#     # POLYS (SpatVector)
-#     polys_sf <- if (!is.null(fiveYearObj$polys))
-#       st_as_sf(fiveYearObj$polys)
-#     else NULL
-#     polys_sf <- st_cast(polys_sf, "MULTIPOLYGON")
-#
-#
-#     # Calculate the distance to the vector layers
-#
-#     # Unpaved distance calculation
-#     if (!is.null(unpaved_sf)) {
-#       pts_yr <- extract_distto(
-#         DT = pts_yr,
-#         feature = unpaved_sf,
-#         name = "unpaved",
-#         where = "both",
-#         crs = crs_year,
-#         int.yr = pts_yr$int.year[1]
-#       )
-#     } else {
-#       pts_yr[, dist_unpaved_end := NA_real_]
-#     }
-#
-#     # Paved distance calculation
-#     if (!is.null(paved_sf)) {
-#       pts_yr <- extract_distto(
-#         DT = pts_yr,
-#         feature = paved_sf,
-#         name = "paved",
-#         where = "both",
-#         crs = crs_year,
-#         int.yr = pts_yr$int.year[1]
-#       )
-#     } else {
-#       pts_yr[, dist_paved_end := NA_real_]
-#     }
-#
-#     # Polygon distance calculation
-#     if (!is.null(polys_sf)) {
-#       pts_yr <- extract_distto(
-#         DT = pts_yr,
-#         feature = polys_sf,
-#         name = "polys",
-#         where = "both",
-#         crs = crs_year,
-#         int.yr = pts_yr$int.year[1]
-#       )
-#     } else {
-#       pts_yr[, dist_polys_end := NA_real_]
-#     }
-#
-#     # Combine the annual extractions and 5 year distance calculations
-#     dt <- data.table(
-#       cbind(
-#         as.data.frame(pts_yr),
-#         vals_start,
-#         vals_end
-#       )
-#     )
-#     dt$year <- as.integer(yr)
-#
-#     return(dt)
-#   })
-#   # Combine all years
-#   sim$extractVar <- rbindlist(extracted_list, fill = TRUE)
-#   message("Extraction complete: ", nrow(sim$extractVar), " records.")
-#
-#   return(invisible(sim))
-#
-# }
-### template for save events
-Save <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-
-  # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
 }
 
