@@ -43,7 +43,7 @@ extractLandscape <- function(sim){
     # PAVED (SpatVectorCollection)
     # May need to add a second paved conversion for the other layer
     paved_sf <- if (!is.null(fiveYearObj$paved))
-      st_as_sf(fiveYearObj$paved[[2]])
+      st_as_sf(fiveYearObj$paved[[1]])
     else NULL
     paved_sf <- st_cast(paved_sf, "MULTILINESTRING")
 
@@ -58,7 +58,6 @@ extractLandscape <- function(sim){
       st_as_sf(fiveYearObj$polys)
     else NULL
     polys_sf <- st_cast(polys_sf, "MULTIPOLYGON")
-
 
     # Calculate the distance to the vector layers
 
@@ -104,14 +103,57 @@ extractLandscape <- function(sim){
       pts_yr[, dist_polys_end := NA_real_]
     }
 
-    # Combine the annual extractions and 5 year distance calculations
+    # Ecoregion extraction
+    eco <- sim$ecoregion
+    # crs fix
+    terra::crs(eco) <- ""
+
+    terra::crs(eco) <- "EPSG:4326"
+
+    eco <- terra::project(eco, annual_rasts)
+
+    if (!is.null(eco)) {
+
+      # start points
+      pts_start <- terra::vect(
+        pts_yr[, .(x1_, y1_)],
+        geom = c("x1_", "y1_"),
+        crs = crs_year
+      )
+
+      eco_start <- terra::extract(eco, pts_start)
+
+      # end points
+      pts_end <- terra::vect(
+        pts_yr[, .(x2_, y2_)],
+        geom = c("x2_", "y2_"),
+        crs = crs_year
+      )
+
+      eco_end <- terra::extract(eco, pts_end)
+
+      eco_start <- data.table::as.data.table(eco_start)
+      eco_end   <- data.table::as.data.table(eco_end)
+
+      eco_start <- eco_start[, .(ECOREGION_start = ECOREGION)]
+      eco_end   <- eco_end[, .(ECOREGION_end   = ECOREGION)]
+
+    } else {
+
+      eco_start <- data.table(ECOREGION_start = NA_integer_)
+      eco_end   <- data.table(ECOREGION_end   = NA_integer_)
+    }
+
+    # Combine the annual extractions, 5 year distance calculations, and ecoregions
     dt <- data.table(
       cbind(
         as.data.frame(pts_yr),
         vals_start,
-        vals_end
-      )
+        vals_end,
+        eco_start,
+        eco_end)
     )
+
     dt$year <- as.integer(yr)
 
     return(dt)
