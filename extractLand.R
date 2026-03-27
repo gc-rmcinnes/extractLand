@@ -1,6 +1,7 @@
 defineModule(sim, list(
   name = "extractLand",
-  description = "Point extraction of landscape values",
+  description = paste0("This module does point extraction of landscape values,",
+                       "distance calculations, and ecoregion ID"),
   keywords = "",
   authors = c(person("Julie", "Tuner", email = "", role = c("aut", "cre")),
               person("Rory", "McInnes", email = "rory_mcinnes@hotmail.com", role = c("aut", "cre"))),
