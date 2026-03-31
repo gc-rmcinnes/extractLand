@@ -41,7 +41,6 @@ extractLandscape <- function(sim){
     # Convert 5-year SpatVectors to sf
 
     # PAVED (SpatVectorCollection)
-    # May need to add a second paved conversion for the other layer
     paved_sf <- if (!is.null(fiveYearObj$paved))
       st_as_sf(fiveYearObj$paved[[1]])
     else NULL

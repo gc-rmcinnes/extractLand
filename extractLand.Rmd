@@ -45,10 +45,7 @@ download.file(url = "https://img.shields.io/badge/Made%20with-Markdown-1f425f.pn
 
 ### Module summary
 
-Provide a brief summary of what the module does / how to use the module.
-
-Module documentation should be written so that others can use your module.
-This is a template for module documentation, and should be changed to reflect your module.
+Once the landscape variables are prepared, this module uses the tracks from prepTracks to extract the landscape variables at the start and end point of each step, calculates the distance to anthropogenic disturbances, and extracts the ecoregion for each point.
 
 ### Module inputs and parameters
 
@@ -75,7 +72,7 @@ knitr::kable(df_params, caption = "List of (ref:extractLand) parameters and thei
 
 ### Events
 
-Describe what happens for each event type.
+A single event that runs the extraction process of the tracks supplied by prepTracks
 
 ### Plotting
 
@@ -88,6 +85,8 @@ Write what is saved.
 ### Module outputs
 
 Description of the module outputs (Table \@ref(tab:moduleOutputs-extractLand)).
+
+"extractedVariables" is a data.table containing all the track information as well as the landscape variables and distance calculations to be used in a iSSA model.
 
 ```{r moduleOutputs-extractLand, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 df_outputs <- SpaDES.core::moduleOutputs("extractLand", "C:/Users/rmcinnes/Documents/prepLocTracks")
